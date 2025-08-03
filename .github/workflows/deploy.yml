@@ -1,0 +1,33 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main # Mude para a branch que você usa para produção, como 'master'.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: SSH into VPS and deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            echo "Starting deployment on VPS..."
+
+            # Navega para o diretório do projeto na VPS
+            cd /root/recrutamentoia # Crie este diretório na sua VPS
+
+            # Atualiza o código do repositório
+            git pull origin main
+
+            # Reinicia os containers. O Traefik irá pegar as novas imagens.
+            docker-compose -f docker-compose.yml up --build -d
+
+            echo "Deployment finished."
