@@ -5,7 +5,7 @@ version: '3.8'
 services:
   # --- Serviço do Backend (API) ---
   backend:
-    image: orickjogando/recrutamentoia-backend:1.0.0
+    image: orickjogando/recrutamentoia-backend:1.0.1
     environment:
       - FRONTEND_URL
       - NODE_ENV
