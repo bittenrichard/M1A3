@@ -1,8 +1,31 @@
-FROM node:20-alpine
+# Estágio 1: Build da aplicação
+FROM node:20-alpine AS builder
+
 WORKDIR /usr/src/app
+
+# Copia os arquivos de dependência e instala apenas as de produção
 COPY package*.json ./
 RUN npm install --omit=dev
+
+# Copia todo o resto do código-fonte
 COPY . .
+
+# Compila o TypeScript para JavaScript
 RUN npm run build:server
+
+# Estágio 2: Imagem final de produção
+FROM node:20-alpine
+
+WORKDIR /usr/src/app
+
+# Copia as dependências de produção do estágio de build
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+# Copia o código compilado do estágio de build
+COPY --from=builder /usr/src/app/dist-server ./dist-server
+COPY package*.json ./
+
+# Expõe a porta que o backend vai usar dentro do contêiner
 EXPOSE 3001
-CMD ["npm", "run", "server"]
+
+# Comando para iniciar o servidor em produção
+CMD [ "node", "-r", "dotenv/config", "./dist-server/server.js" ]

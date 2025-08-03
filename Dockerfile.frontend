@@ -1,9 +1,31 @@
-FROM node:20-alpine as build-stage
+# Estágio 1: Build do frontend com Node.js
+FROM node:20-alpine AS build-stage
+
 WORKDIR /app
+
+# Copia os arquivos de dependência e instala
 COPY package*.json ./
 RUN npm install
+
+# Copia todo o código-fonte
 COPY . .
+
+# Expõe a chave da API do Baserow como argumento de build
+# Assim, o Vite pode injetá-la no código do frontend durante a compilação.
+ARG VITE_BASEROW_API_KEY
+ENV VITE_BASEROW_API_KEY=$VITE_BASEROW_API_KEY
+
+# Comando para compilar o projeto para produção
 RUN npm run build
-FROM nginx:alpine as production-stage
+
+# Estágio 2: Servidor de produção com Nginx
+FROM nginx:alpine AS production-stage
+
+# Copia os arquivos compilados do estágio de build para a pasta do Nginx
 COPY --from=build-stage /app/dist /usr/share/nginx/html
+
+# Expõe a porta 80, que é a porta padrão do Nginx
+EXPOSE 80
+
+# Comando para iniciar o Nginx
 CMD ["nginx", "-g", "daemon off;"]
