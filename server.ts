@@ -64,6 +64,7 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     const userProfile = {
       id: newUser.id, nome: newUser.nome, email: newUser.Email, empresa: newUser.empresa,
       telefone: newUser.telefone, avatar_url: newUser.avatar_url || null,
+      // CORREÇÃO 1/5: Adicionada a linha abaixo
       google_refresh_token: newUser.google_refresh_token || null,
     };
     res.status(201).json({ success: true, user: userProfile });
@@ -90,6 +91,7 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       const userProfile = {
         id: user.id, nome: user.nome, email: user.Email, empresa: user.empresa,
         telefone: user.telefone, avatar_url: user.avatar_url || null,
+        // CORREÇÃO 2/5: Adicionada a linha abaixo
         google_refresh_token: user.google_refresh_token || null,
       };
       res.json({ success: true, user: userProfile });
@@ -120,6 +122,7 @@ app.patch('/api/users/:userId/profile', async (req: Request, res: Response) => {
     const userProfile = {
       id: updatedUser.id, nome: updatedUser.nome, email: updatedUser.Email, empresa: updatedUser.empresa,
       telefone: updatedUser.telefone, avatar_url: updatedUser.avatar_url || null,
+      // CORREÇÃO 3/5: Adicionada a linha abaixo
       google_refresh_token: updatedUser.google_refresh_token || null,
     };
     res.status(200).json({ success: true, user: userProfile });
@@ -161,6 +164,7 @@ app.get('/api/users/:userId', async (req: Request, res: Response) => {
     const userProfile = {
       id: user.id, nome: user.nome, email: user.Email, empresa: user.empresa,
       telefone: user.telefone, avatar_url: user.avatar_url || null,
+      // CORREÇÃO 4/5: Adicionada a linha abaixo
       google_refresh_token: user.google_refresh_token || null,
     };
     res.json(userProfile);
@@ -185,6 +189,7 @@ app.post('/api/upload-avatar', upload.single('avatar'), async (req: Request, res
     const userProfile = {
       id: updatedUser.id, nome: updatedUser.nome, email: updatedUser.Email, empresa: updatedUser.empresa,
       telefone: updatedUser.telefone, avatar_url: updatedUser.avatar_url || null,
+      // CORREÇÃO 5/5: Adicionada a linha abaixo
       google_refresh_token: updatedUser.google_refresh_token || null,
     };
     res.json({ success: true, avatar_url: newAvatarUrl, user: userProfile });
