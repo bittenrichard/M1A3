@@ -5,46 +5,37 @@ version: '3.8'
 services:
   # --- Serviço do Backend (API) ---
   backend:
-    image: orickjogando/recrutamentoia-backend:1.0.0
+    image: orickjogando/recrutamentoia-backend:1.0.0 # ou a versão mais recente
     networks:
       - traefik_network
     deploy:
       replicas: 1
       placement:
         constraints: [node.role == manager]
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
     labels:
       - "traefik.enable=true"
-      # --- CORREÇÃO DA ROTA DA API ---
-      # DOCUMENTAÇÃO: A regra foi alterada. Agora, o Traefik irá direcionar
-      # para este contêiner (backend) todo o tráfego que chegar no domínio
-      # principal (recrutamentoia.com.br) E cujo caminho comece com /api.
-      # Isso garante que as chamadas do frontend para /api/... cheguem ao lugar certo.
-      - "traefik.http.routers.backend-router.rule=Host(`recrutamentoia.com.br`) && PathPrefix(`/api`)"
+      - "traefik.docker.network=Foco"
+      # --- ARQUITETURA LIMPA ---
+      # DOCUMENTAÇÃO: A regra agora é simples e direta. Todo o tráfego
+      # que chegar para o host 'api.recrutamentoia.com.br' será roteado
+      # para este contêiner do backend.
+      - "traefik.http.routers.backend-router.rule=Host(`api.recrutamentoia.com.br`)"
       - "traefik.http.routers.backend-router.entrypoints=websecure"
       - "traefik.http.routers.backend-router.tls.certresolver=letsencryptresolver"
       - "traefik.http.services.backend-service.loadbalancer.server.port=3001"
-      - "traefik.docker.network=Foco"
 
   # --- Serviço do Frontend (React App) ---
   frontend:
-    image: orickjogando/recrutamentoia-frontend:1.0.0
+    image: orickjogando/recrutamentoia-frontend:1.0.2 # use a nova versão da imagem
     networks:
       - traefik_network
     deploy:
       replicas: 1
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 256M
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=Foco"
-      # DOCUMENTAÇÃO: Esta regra permanece a mesma, capturando todo o tráfego
-      # para o domínio principal que NÃO comece com /api (pois a regra da API é mais específica).
+      # DOCUMENTAÇÃO: A regra do frontend também fica mais simples, respondendo
+      # apenas pelo domínio principal e sua variação com 'www'.
       - "traefik.http.routers.frontend-router.rule=Host(`recrutamentoia.com.br`) || Host(`www.recrutamentoia.com.br`)"
       - "traefik.http.routers.frontend-router.entrypoints=websecure"
       - "traefik.http.routers.frontend-router.tls.certresolver=letsencryptresolver"

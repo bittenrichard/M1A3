@@ -1,82 +1,146 @@
-// Local: src/features/results/components/CandidateCard.tsx
+// Local: src/features/results/components/CandidateTable.tsx
 
-import React, { DragEvent } from 'react'; // Adicionar DragEvent
+import React from 'react';
 import { Candidate } from '../../../shared/types';
-import { GripVertical, CalendarPlus, Mail, CalendarDays } from 'lucide-react';
+import { MessageCircle, Eye, ChevronsUpDown, ArrowDown, ArrowUp, Loader2 } from 'lucide-react';
+import { formatPhoneNumberForWhatsApp } from '../../../shared/utils/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-interface CandidateCardProps {
-  candidate: Candidate;
-  index: number;
+interface CandidateTableProps {
+  candidates: Candidate[];
   onViewDetails: (candidate: Candidate) => void;
-  onScheduleInterview: (candidate: Candidate) => void;
-  onUpdateStatus: (candidateId: number, newStatus: 'Triagem' | 'Entrevista' | 'Aprovado' | 'Reprovado') => void;
+  isLoading?: boolean;
+  requestSort: (key: 'nome' | 'score') => void;
+  sortConfig: { key: 'nome' | 'score'; direction: string };
 }
 
-const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, index, onViewDetails, onScheduleInterview, onUpdateStatus }) => {
+const CandidateTable: React.FC<CandidateTableProps> = ({
+  candidates,
+  onViewDetails,
+  isLoading = false,
+  requestSort,
+  sortConfig,
+}) => {
   const getScoreColor = (score: number) => {
-    if (score >= 85) return 'bg-green-100 text-green-800';
-    if (score >= 70) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
+    if (score >= 85) return 'text-green-600';
+    if (score >= 70) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
-  const formattedTriagemDate = candidate.data_triagem 
-    ? format(new Date(candidate.data_triagem), 'dd/MM/yyyy', { locale: ptBR }) 
-    : 'N/A';
-
-  const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
-    // Definimos os dados que queremos transferir: o ID do candidato.
-    e.dataTransfer.setData("candidateId", String(candidate.id));
+  const getScoreBarColor = (score: number) => {
+    if (score >= 85) return 'bg-green-500';
+    if (score >= 70) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+  
+  const getSortIcon = (key: 'nome' | 'score') => {
+    if (sortConfig.key !== key) {
+      return <ChevronsUpDown size={14} className="ml-1 text-gray-400" />;
+    }
+    if (sortConfig.direction === 'ascending') {
+      return <ArrowUp size={14} className="ml-1 text-indigo-600" />;
+    }
+    return <ArrowDown size={14} className="ml-1 text-indigo-600" />;
   };
 
   return (
-    <div
-      className={`bg-white rounded-lg border shadow-sm mb-4 group relative 
-                  transition-all duration-200 ease-out 
-                  hover:shadow-md hover:-translate-y-1`}
-      draggable // Habilitar a capacidade de arrastar o componente
-      onDragStart={handleDragStart} // Adicionar o handler de início do arrasto
-    >
-      <div className="absolute top-2 right-2 p-1 text-gray-300 group-hover:text-gray-500">
-        <GripVertical size={16} />
+    <div className="bg-white p-6 rounded-lg shadow-sm">
+      <h3 className="text-lg font-semibold mb-4">Histórico de Candidatos Analisados</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-xs text-gray-500 uppercase border-b">
+              <th className="px-4 py-3 font-semibold">
+                <button onClick={() => requestSort('nome')} className="flex items-center text-left hover:text-gray-900 transition-colors">
+                  Candidato {getSortIcon('nome')}
+                </button>
+              </th>
+              <th className="px-4 py-3 font-semibold">
+                <button onClick={() => requestSort('score')} className="flex items-center text-left hover:text-gray-900 transition-colors">
+                  Score {getSortIcon('score')}
+                </button>
+              </th>
+              <th className="px-4 py-3 font-semibold">Data da Triagem</th>
+              <th className="px-4 py-3 font-semibold text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={4} className="text-center py-10 text-gray-500">
+                  <Loader2 className="mx-auto h-8 w-8 text-indigo-600 animate-spin" />
+                  <p className="mt-2">Carregando candidatos...</p>
+                </td>
+              </tr>
+            ) : candidates.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center py-10 text-gray-500">
+                  Nenhum candidato encontrado para esta vaga.
+                </td>
+              </tr>
+            ) : (
+              candidates.map((candidate) => {
+                const whatsappNumber = formatPhoneNumberForWhatsApp(candidate.telefone);
+                
+                // --- CORREÇÃO DE ROBUSTEZ ---
+                // DOCUMENTAÇÃO: Usamos o optional chaining (?.) para acessar 'data_triagem' de forma segura.
+                // Se o campo não existir no objeto 'candidate', a expressão retorna 'undefined'
+                // e o '||' fornece 'N/A' como um valor padrão, evitando o erro.
+                const formattedTriagemDate = candidate?.data_triagem
+                  ? format(new Date(candidate.data_triagem), 'dd/MM/yyyy', { locale: ptBR })
+                  : 'N/A';
+                // --- FIM DA CORREÇÃO ---
+
+                return (
+                  <tr key={candidate.id} className="border-b hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-4 font-medium">{candidate.nome}</td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center">
+                        <span className={`font-bold mr-2 ${getScoreColor(candidate.score || 0)}`}>
+                          {candidate.score || 0}%
+                        </span>
+                        <div className="w-20 bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${getScoreBarColor(candidate.score || 0)}`}
+                            style={{ width: `${candidate.score || 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-600">
+                      {formattedTriagemDate}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-center space-x-2">
+                         <button onClick={() => onViewDetails(candidate)} className="p-2 text-gray-500 hover:bg-gray-200 hover:text-indigo-600 rounded-full transition-colors" title="Ver Detalhes">
+                          <Eye size={18} />
+                        </button>
+                        <a
+                          href={whatsappNumber ? `https://wa.me/${whatsappNumber}` : undefined}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => !whatsappNumber && e.preventDefault()}
+                          className={`p-2 rounded-full transition-colors ${
+                            !whatsappNumber
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-500 hover:bg-green-100 hover:text-green-600'
+                          }`}
+                          title={whatsappNumber ? 'Chamar no WhatsApp' : 'Telefone não disponível'}
+                        >
+                          <MessageCircle size={18} />
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
-
-      <div className="p-4 cursor-pointer" onClick={() => onViewDetails(candidate)}>
-        <div className="flex justify-between items-start">
-          <h4 className="font-bold text-gray-900 pr-8">{candidate.nome}</h4>
-          <div className={`px-2 py-1 rounded-full text-xs font-bold ${getScoreColor(candidate.score || 0)}`}>
-            {candidate.score || 0}%
-          </div>
-        </div>
-        
-        {candidate.email && (
-          <p className="text-xs text-gray-500 mt-1 flex items-center">
-            <Mail size={16} className="mr-1 flex-shrink-0" /> {candidate.email}
-          </p>
-        )}
-        <p className="text-xs text-gray-500 mt-1 flex items-center">
-          <CalendarDays size={16} className="mr-1 flex-shrink-0" /> Triado em: {formattedTriagemDate}
-        </p>
-
-        <p className="text-sm text-gray-600 mt-2 line-clamp-3 h-[60px]">
-          {candidate.resumo_ia || 'Sem resumo disponível.'}
-        </p>
-      </div>
-
-      {candidate.status?.value === 'Entrevista' && (
-        <div className="border-t p-2 flex justify-end">
-          <button 
-            onClick={(e) => { e.stopPropagation(); onScheduleInterview(candidate); }}
-            className="flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 p-2 rounded-md hover:bg-indigo-50 transition-colors"
-          >
-            <CalendarPlus size={16} className="mr-2" />
-            Agendar Entrevista
-          </button>
-        </div>
-      )}
     </div>
   );
 };
 
-export default CandidateCard;
+export default CandidateTable;

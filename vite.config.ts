@@ -1,38 +1,42 @@
 // Local: vite.config.ts
 
-import path from "path"
-import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from "path";
 
-export default defineConfig(({ command }) => {
-  const baseConfig = {
+// https://vitejs.dev/config/
+export default defineConfig(({ command, mode }) => {
+  // Carrega as variáveis de ambiente do .env para ter acesso a elas aqui
+  const env = loadEnv(mode, process.cwd(), '');
+
+  const config = {
     plugins: [react()],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
       },
     },
-    server: {} // Objeto do servidor inicializado
-  };
-
-  /**
-   * DOCUMENTAÇÃO: A configuração de proxy é uma ferramenta apenas para o ambiente
-   * de desenvolvimento, para que o frontend (rodando em uma porta) possa se comunicar
-   * com o backend (rodando em outra) sem problemas de CORS.
-   * Adicionamos esta lógica para garantir que o proxy seja ativado SOMENTE
-   * quando o comando for 'serve' (npm run dev), e não durante o 'build' para produção.
-   */
-  if (command === 'serve') {
-    baseConfig.server = {
+    // --- AJUSTE FINAL DE ARQUITETURA ---
+    // DOCUMENTAÇÃO: Esta é a configuração que separa os ambientes.
+    server: {
+      // Em desenvolvimento (npm run dev), usamos o proxy para redirecionar
+      // as chamadas de /api para o backend local na porta 3001.
       proxy: {
         '/api': {
           target: 'http://localhost:3001',
           changeOrigin: true,
-          secure: false, // Pode ser útil se o backend local não tiver https
+          // Reescreve o caminho para remover o /api antes de enviar ao backend.
+          rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
-    };
-  }
+    },
+    // Em produção (npm run build), definimos a URL completa da nossa API.
+    // O código do frontend fará as chamadas diretamente para o subdomínio da API.
+    define: {
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || 'https://api.recrutamentoia.com.br')
+    }
+    // --- FIM DO AJUSTE ---
+  };
 
-  return baseConfig;
+  return config;
 });
