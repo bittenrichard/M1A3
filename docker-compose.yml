@@ -5,10 +5,8 @@ version: '3.8'
 services:
   # --- Serviço do Backend (API) ---
   backend:
-    # Usamos a tag de versão específica que você construiu.
     image: orickjogando/recrutamentoia-backend:1.0.0
     networks:
-      # Conecta o serviço à sua rede 'Foco'.
       - traefik_network
     deploy:
       replicas: 1
@@ -20,20 +18,21 @@ services:
           memory: 512M
     labels:
       - "traefik.enable=true"
-      # --- AJUSTE ---
-      # Informa ao Traefik para usar a sua rede chamada 'Foco'.
-      - "traefik.docker.network=Foco"
-      - "traefik.http.routers.backend-router.rule=Host(`api.recrutamentoia.com.br`)"
+      # --- CORREÇÃO DA ROTA DA API ---
+      # DOCUMENTAÇÃO: A regra foi alterada. Agora, o Traefik irá direcionar
+      # para este contêiner (backend) todo o tráfego que chegar no domínio
+      # principal (recrutamentoia.com.br) E cujo caminho comece com /api.
+      # Isso garante que as chamadas do frontend para /api/... cheguem ao lugar certo.
+      - "traefik.http.routers.backend-router.rule=Host(`recrutamentoia.com.br`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend-router.entrypoints=websecure"
       - "traefik.http.routers.backend-router.tls.certresolver=letsencryptresolver"
       - "traefik.http.services.backend-service.loadbalancer.server.port=3001"
+      - "traefik.docker.network=Foco"
 
   # --- Serviço do Frontend (React App) ---
   frontend:
-    # Usamos a tag de versão específica que você construiu.
     image: orickjogando/recrutamentoia-frontend:1.0.0
     networks:
-      # Conecta o serviço à sua rede 'Foco'.
       - traefik_network
     deploy:
       replicas: 1
@@ -43,9 +42,9 @@ services:
           memory: 256M
     labels:
       - "traefik.enable=true"
-      # --- AJUSTE ---
-      # Informa ao Traefik para usar a sua rede chamada 'Foco'.
       - "traefik.docker.network=Foco"
+      # DOCUMENTAÇÃO: Esta regra permanece a mesma, capturando todo o tráfego
+      # para o domínio principal que NÃO comece com /api (pois a regra da API é mais específica).
       - "traefik.http.routers.frontend-router.rule=Host(`recrutamentoia.com.br`) || Host(`www.recrutamentoia.com.br`)"
       - "traefik.http.routers.frontend-router.entrypoints=websecure"
       - "traefik.http.routers.frontend-router.tls.certresolver=letsencryptresolver"
@@ -53,9 +52,6 @@ services:
 
 # --- Definição das Redes ---
 networks:
-  # DOCUMENTAÇÃO: Esta é a declaração lógica da sua rede externa.
-  # O nome lógico aqui é 'traefik_network', mas o nome físico real
-  # que o Docker vai procurar no servidor é 'Foco'.
   traefik_network:
     external: true
     name: Foco
