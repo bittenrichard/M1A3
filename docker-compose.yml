@@ -15,15 +15,28 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=Foco"
-      # Rota para a API, agora usando o subdomínio dedicado
-      - "traefik.http.routers.backend-router.rule=Host(`api.recrutamentoia.com.br`)"
+      
+      # --- Roteador para a API ---
+      # DOCUMENTAÇÃO: Esta é a regra principal. Ela captura o tráfego que chega
+      # no domínio principal E cujo caminho começa com /api.
+      - "traefik.http.routers.backend-router.rule=Host(`recrutamentoia.com.br`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend-router.entrypoints=websecure"
       - "traefik.http.routers.backend-router.tls.certresolver=letsencryptresolver"
+      
+      # --- MIDDLEWARE (A PEÇA CHAVE) ---
+      # DOCUMENTAÇÃO: Aqui, aplicamos um "middleware" (um intermediário).
+      # O middleware 'strip-api-prefix' vai remover o /api da URL antes de
+      # enviá-la para o contêiner do backend.
+      - "traefik.http.routers.backend-router.middlewares=strip-api-prefix"
+      - "traefik.http.middlewares.strip-api-prefix.stripprefix.prefixes=/api"
+      
+      # --- Serviço do Backend ---
+      # Informa ao Traefik que o serviço do backend está na porta 3001.
       - "traefik.http.services.backend-service.loadbalancer.server.port=3001"
 
   # --- Serviço do Frontend (React App) ---
   frontend:
-    image: orickjogando/recrutamentoia-frontend:1.0.2 # Utilize a nova versão da imagem
+    image: orickjogando/recrutamentoia-frontend:1.0.2
     networks:
       - traefik_network
     deploy:
@@ -31,7 +44,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=Foco"
-      # Rota para o frontend, respondendo apenas pelo domínio principal
+      # DOCUMENTAÇÃO: Esta regra captura todo o resto do tráfego para o domínio principal.
+      # Como a regra do backend é mais específica (tem PathPrefix), ela tem prioridade.
       - "traefik.http.routers.frontend-router.rule=Host(`recrutamentoia.com.br`) || Host(`www.recrutamentoia.com.br`)"
       - "traefik.http.routers.frontend-router.entrypoints=websecure"
       - "traefik.http.routers.frontend-router.tls.certresolver=letsencryptresolver"
