@@ -5,15 +5,11 @@ version: '3.8'
 services:
   # --- Serviço do Backend (API) ---
   backend:
-    # DOCUMENTAÇÃO: Use uma tag de versão específica em vez de 'latest'.
-    # Isso garante que você sempre fará o deploy da mesma versão da imagem.
+    # Usamos a tag de versão específica que você construiu.
     image: orickjogando/recrutamentoia-backend:1.0.0
-    # DOCUMENTAÇÃO: REMOVEMOS O BLOCO 'environment' DAQUI.
-    # As variáveis de ambiente (segredos) serão gerenciadas pelo Portainer,
-    # mantendo este arquivo limpo e seguro.
     networks:
-      # Conecta o serviço à rede do Traefik para que ele seja "descoberto".
-      - traefik-public
+      # Conecta o serviço à sua rede 'Foco'.
+      - traefik_network
     deploy:
       replicas: 1
       placement:
@@ -23,29 +19,22 @@ services:
           cpus: '0.50'
           memory: 512M
     labels:
-      # Habilita o Traefik para este serviço.
       - "traefik.enable=true"
-      # Define a rede que o Traefik usará para se comunicar com este serviço.
-      - "traefik.docker.network=traefik-public"
-      
-      # --- Roteamento para a API ---
-      # Define a regra de roteamento: todo tráfego para api.recrutamentoia.com.br...
+      # --- AJUSTE ---
+      # Informa ao Traefik para usar a sua rede chamada 'Foco'.
+      - "traefik.docker.network=Foco"
       - "traefik.http.routers.backend-router.rule=Host(`api.recrutamentoia.com.br`)"
-      # ...que chegar pela porta segura (HTTPS)...
       - "traefik.http.routers.backend-router.entrypoints=websecure"
-      # ...usará o resolvedor de certificados do Let's Encrypt.
       - "traefik.http.routers.backend-router.tls.certresolver=letsencryptresolver"
-      
-      # --- Configuração do Serviço no Traefik ---
-      # Informa ao Traefik que o backend está rodando na porta 3001 dentro do contêiner.
       - "traefik.http.services.backend-service.loadbalancer.server.port=3001"
 
   # --- Serviço do Frontend (React App) ---
   frontend:
-    # DOCUMENTAÇÃO: Use também uma tag de versão específica.
+    # Usamos a tag de versão específica que você construiu.
     image: orickjogando/recrutamentoia-frontend:1.0.0
     networks:
-      - traefik-public
+      # Conecta o serviço à sua rede 'Foco'.
+      - traefik_network
     deploy:
       replicas: 1
       resources:
@@ -54,22 +43,19 @@ services:
           memory: 256M
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=traefik-public"
-
-      # --- Roteamento para o Site Principal ---
-      # Direciona o tráfego de recrutamentoia.com.br e www.recrutamentoia.com.br
+      # --- AJUSTE ---
+      # Informa ao Traefik para usar a sua rede chamada 'Foco'.
+      - "traefik.docker.network=Foco"
       - "traefik.http.routers.frontend-router.rule=Host(`recrutamentoia.com.br`) || Host(`www.recrutamentoia.com.br`)"
       - "traefik.http.routers.frontend-router.entrypoints=websecure"
       - "traefik.http.routers.frontend-router.tls.certresolver=letsencryptresolver"
-
-      # --- Configuração do Serviço no Traefik ---
-      # O servidor web (Nginx) dentro do contêiner do frontend serve os arquivos na porta 80.
       - "traefik.http.services.frontend-service.loadbalancer.server.port=80"
 
 # --- Definição das Redes ---
 networks:
-  # DOCUMENTAÇÃO: Esta é a rede que o Traefik monitora.
-  # Declaramos como "externa" porque ela será criada separadamente,
-  # durante a instalação do próprio Traefik.
-  traefik-public:
+  # DOCUMENTAÇÃO: Esta é a declaração lógica da sua rede externa.
+  # O nome lógico aqui é 'traefik_network', mas o nome físico real
+  # que o Docker vai procurar no servidor é 'Foco'.
+  traefik_network:
     external: true
+    name: Foco
