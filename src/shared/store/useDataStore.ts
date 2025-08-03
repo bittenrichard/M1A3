@@ -4,10 +4,6 @@ import { create } from 'zustand';
 import { JobPosting } from '../../features/screening/types';
 import { Candidate } from '../../shared/types';
 import { UserProfile } from '../../features/auth/types';
-// Remova: import { baserow } from '../services/baserowClient'; // REMOVA esta linha
-// Remova: const VAGAS_TABLE_ID = '709'; // REMOVA esta linha
-// Remova: const CANDIDATOS_TABLE_ID = '710'; // REMOVA esta linha
-// Remova: const WHATSAPP_CANDIDATOS_TABLE_ID = '712'; // REMOVA esta linha
 
 interface DataState {
   jobs: JobPosting[];
@@ -30,17 +26,29 @@ export const useDataStore = create<DataState>((set) => ({
   fetchAllData: async (profile: UserProfile) => {
     set({ isDataLoading: true, error: null });
     try {
-      // Chame o endpoint centralizado no seu backend
       const response = await fetch(`/api/data/all/${profile.id}`);
+      
+      // ANÁLISE DA RESPOSTA: Se a resposta não for JSON, tratamos o erro.
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const textResponse = await response.text();
+        console.error("Erro ao buscar dados (useDataStore): A resposta não é JSON.", textResponse);
+        throw new Error('O servidor retornou uma resposta inesperada. Verifique os logs do backend.');
+      }
+
       if (!response.ok) {
         throw new Error('Falha ao carregar dados do servidor.');
       }
+      
       const { jobs, candidates } = await response.json();
       
-      set({ jobs: jobs, candidates: candidates });
+      set({ jobs: jobs || [], candidates: candidates || [] });
+
     } catch (err: any) {
       console.error("Erro ao buscar dados (useDataStore):", err);
-      set({ error: 'Falha ao carregar dados.', jobs: [], candidates: [] });
+      // MUDANÇA PRINCIPAL: Em caso de erro, limpamos os dados para evitar que a UI quebre
+      // com dados inconsistentes do estado anterior.
+      set({ error: err.message || 'Falha ao carregar dados.', jobs: [], candidates: [] });
     } finally {
       set({ isDataLoading: false });
     }
@@ -58,12 +66,11 @@ export const useDataStore = create<DataState>((set) => ({
 
   deleteJobById: async (jobId: number) => {
     try {
-      // Chame o backend para deletar a vaga
       const response = await fetch(`/api/jobs/${jobId}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
-        const errorData = await response.json(); // Tenta ler o erro do corpo
+        const errorData = await response.json();
         throw new Error(errorData.error || "Não foi possível excluir a vaga.");
       }
       set((state) => ({
@@ -71,14 +78,13 @@ export const useDataStore = create<DataState>((set) => ({
       }));
     } catch (error) {
       console.error("Erro ao deletar vaga (useDataStore):", error);
-      throw error; // Re-lança para que o componente chamador possa lidar
+      throw error;
     }
   },
 
   updateCandidateStatusInStore: (candidateId: number, newStatus: 'Triagem' | 'Entrevista' | 'Aprovado' | 'Reprovado') => {
     set((state) => ({
       candidates: state.candidates.map(c => 
-        // Verifica se é o candidato correto e atualiza o status
         c.id === candidateId ? { ...c, status: { id: 0, value: newStatus } } : c
       )
     }));
