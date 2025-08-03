@@ -1,31 +1,43 @@
-# Estágio 1: Build do frontend com Node.js
-FROM node:20-alpine AS build-stage
+# Estágio 1: Construção da aplicação com Node.js
+# --- CORREÇÃO FINAL, DEFINITIVA E ROBUSTA ---
+# DOCUMENTAÇÃO: Nós abandonamos as imagens 'alpine' e 'slim' para o estágio de build.
+# Adotamos a imagem completa 'node:20', baseada na versão full do Debian.
+# Esta imagem contém TODAS as bibliotecas e ferramentas de build necessárias,
+# eliminando completamente a causa raiz do erro do Rollup, que é a falta de
+# compatibilidade ou de alguma dependência de sistema nos ambientes mínimos.
+# Esta é a abordagem mais segura para garantir um build consistente.
+FROM node:20 AS build-stage
 
+# Define o diretório de trabalho dentro do contêiner.
 WORKDIR /app
 
-# Copia os arquivos de dependência e instala
+# Copia os arquivos de definição de pacotes.
 COPY package*.json ./
-RUN npm install
 
-# Copia todo o código-fonte
+# Usamos 'npm ci' por ser a melhor prática para builds reprodutíveis.
+# No ambiente completo do node:20, ele funcionará sem problemas.
+RUN npm ci
+
+# Copia todo o resto do código do projeto para o contêiner.
 COPY . .
 
-# Expõe a chave da API do Baserow como argumento de build
-# Assim, o Vite pode injetá-la no código do frontend durante a compilação.
-ARG VITE_BASEROW_API_KEY
-ENV VITE_BASEROW_API_KEY=$VITE_BASEROW_API_KEY
-
-# Comando para compilar o projeto para produção
+# Comando para compilar o projeto para produção.
 RUN npm run build
 
 # Estágio 2: Servidor de produção com Nginx
+# Aqui mantemos a imagem 'nginx:alpine' por ser extremamente leve,
+# já que ela só precisa servir os arquivos estáticos já compilados.
+# O tamanho da imagem final permanece otimizado.
 FROM nginx:alpine AS production-stage
 
-# Copia os arquivos compilados do estágio de build para a pasta do Nginx
+# Copia os arquivos estáticos gerados no estágio de build (a pasta 'dist').
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Expõe a porta 80, que é a porta padrão do Nginx
+# Copia a configuração personalizada do Nginx.
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expõe a porta 80 para o tráfego externo.
 EXPOSE 80
 
-# Comando para iniciar o Nginx
+# Comando para iniciar o servidor Nginx.
 CMD ["nginx", "-g", "daemon off;"]
